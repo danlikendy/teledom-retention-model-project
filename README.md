@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-orange.svg)](https://scikit-learn.org/)
-[![ROC-AUC](https://img.shields.io/badge/ROC--AUC-0.976-success.svg)](#результаты)
+[![ROC-AUC](https://img.shields.io/badge/ROC--AUC-0.912-success.svg)](#результаты)
 
 ## Описание
 
