@@ -1,75 +1,69 @@
-# teledom-retention-model-project
+# Who leaves TeleDom
 
-Прогноз оттока абонентов телеком-оператора «ТелеДом». Выпускной проект Data Scientist.
+Binary churn on a telecom snapshot: **7 043** customers at **2020-02-01**, four SQL tables (contract, personal, internet, phone). Target is `EndDate != 'No'` — **15.6%** leavers. The job is to rank who to call with a retain offer before they walk.
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-orange.svg)](https://scikit-learn.org/)
-[![ROC-AUC](https://img.shields.io/badge/ROC--AUC-0.912-success.svg)](#результаты)
+Live write-up: **[danlikendy.github.io/teledom-retention-model-project](https://danlikendy.github.io/teledom-retention-model-project/)**
 
-## Описание
+This is a **ranking** model. Accuracy 0.92 on 15.6% churn is cheap; **ROC-AUC** is the number I report.
 
-Модель бинарной классификации предсказывает, разорвёт ли абонент договор. Данные — SQLite-база с договорами, персональной информацией, интернет- и телефонными услугами (7043 клиента, срез на 01.02.2020).
+---
 
-**Задача заказчика:** заранее находить клиентов с риском оттока и предлагать промокоды / специальные условия.
+## Problem
 
-## Результаты
+Month-to-month contracts, high bill, short tenure. If you compute tenure as `snapshot − start` for people who already left, the clock keeps running after they churned. I stop tenure at `EndDate` for leavers.
 
-| Метрика | Значение |
-|---------|----------|
-| ROC-AUC (test) | **0.976** |
-| Accuracy (test) | **0.968** |
-| Лучшая модель | Gradient Boosting + Optuna |
+Dummy classifier on the hold-out: AUC **0.50**. Trees without tuning: **0.64**. Untuned gradient boosting, 5-fold: **0.85**.
 
-Ключевые факторы оттока: короткий срок договора, помесячная оплата, electronic check, высокий `MonthlyCharges`.
+## What I shipped
 
-## Структура
+| Piece | Choice |
+|---|---|
+| Label | `EndDate != 'No'` |
+| Tenure | days to exit (leavers) or to snapshot (active) |
+| Split | 75/25, stratified, `random_state=250826` |
+| Metric | ROC-AUC |
+| Search | Gradient boosting, Optuna, 30 trials, 5-fold on train |
+| Serve | sklearn `Pipeline` (impute / scale / OHE → GB) |
 
-```
-├── data/                          # SQLite-база (скачивается отдельно)
-├── notebooks/
-│   └── telecom_churn_prediction.ipynb
-├── scripts/
-│   └── generate_notebook.py
-├── requirements.txt
-└── README.md
-```
+| Model | ROC-AUC |
+|---|---:|
+| Dummy (stratified, test) | 0.504 |
+| Decision tree (CV) | 0.636 ± 0.024 |
+| Random forest (CV) | 0.796 ± 0.020 |
+| Gradient boosting, default (CV) | 0.850 ± 0.018 |
+| **GB + Optuna (CV)** | **0.891** |
+| **GB + Optuna (test)** | **0.912** |
+| Accuracy (test) | 0.918 |
 
-## Быстрый старт
+Importances: **ContractDuration** (~0.46), then `TotalCharges`, `MonthlyCharges`, month-to-month `Type`. Not a mystery: people on a short, expensive, cancellable plan leave.
+
+I do **not** quote 0.976. That number was in an earlier README and is not what the notebook printed on the hold-out.
+
+## Run
 
 ```bash
-git clone https://github.com/danlikendy/teledom-retention-model-project.git
-cd teledom-retention-model-project
-
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-mkdir -p data
-wget -O data/ds-plus-final.db https://code.s3.yandex.net/data-scientist/ds-plus-final.db
-
-jupyter notebook notebooks/telecom_churn_prediction.ipynb
+python scripts/download_data.py
+pytest tests/ -q
 ```
 
-## Данные
+Notebook (join → tenure → Optuna → importances): `notebooks/eda_and_training.ipynb`.
 
-| Таблица | Содержание |
-|---------|------------|
-| `contract` | договор, оплата, расходы |
-| `personal` | пол, семья, возраст |
-| `internet` | тип интернета и доп. услуги |
-| `phone` | телефония |
+Dump `artifacts/model.joblib` from that notebook if you want `ChurnPipeline` to score a frame.
 
-Целевая переменная: `EndDate != 'No'` → отток (15.6%).
+More: [docs/RUN.md](docs/RUN.md) · [docs/API.md](docs/API.md)
 
-## Модели
+## Layout
 
-- Decision Tree
-- Random Forest + RandomizedSearchCV
-- Gradient Boosting + Optuna (5 гиперпараметров)
-- MLP (нейросеть)
+```
+src/           churn label, tenure, pipeline loader
+scripts/       download SQLite dump
+notebooks/     full training path
+tests/         tenure leak tests (no DB)
+data/          ds-plus-final.db (gitignored)
+```
 
-`RANDOM_STATE = 250826`
+---
 
-## Автор
-
-[danlikendy](https://github.com/danlikendy)
+Artem Tsygantsov · [tsygantsov.ru](https://tsygantsov.ru) · MIT
