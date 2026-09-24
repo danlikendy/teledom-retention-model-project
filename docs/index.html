@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TeleDom churn — Tsygantsov</title>
+  <meta name="description" content="Telecom churn ranking. Gradient boosting + Optuna. Hold-out ROC-AUC 0.912. Tenure stops at EndDate for leavers." />
+  <style>
+    :root {
+      --bg: #12110f;
+      --fg: #e8e2d6;
+      --muted: #9a9284;
+      --line: #2a2722;
+      --accent: #c45c3e;
+      --ok: #c4b48a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--fg); }
+    body {
+      font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 20px 80px;
+    }
+    h1 { font-size: 1.55rem; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 8px; }
+    h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ok); margin: 36px 0 10px; font-weight: 600; }
+    p { margin: 0 0 12px; }
+    a { color: var(--fg); }
+    .sub { color: var(--muted); margin-bottom: 28px; }
+    .rule { height: 1px; background: var(--line); margin: 28px 0; }
+    .nums { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    @media (min-width: 560px) { .nums { grid-template-columns: repeat(4, 1fr); } }
+    .num {
+      border: 1px solid var(--line);
+      padding: 12px 12px 10px;
+    }
+    .num b { display: block; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+    .num span { color: var(--muted); font-size: 0.78rem; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
+    pre {
+      background: #0c0b0a;
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .warn { color: var(--accent); font-size: 0.9rem; }
+    footer { margin-top: 40px; color: var(--muted); font-size: 0.85rem; }
+    .links a { margin-right: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Who leaves TeleDom</h1>
+  <p class="sub">Churn ranker on a 2020-02-01 snapshot. Gradient boosting + Optuna. Artem Tsygantsov, 2026.</p>
+  <p class="links">
+    <a href="https://github.com/danlikendy/teledom-retention-model-project">repo</a>
+    <a href="https://github.com/danlikendy/teledom-retention-model-project/blob/main/docs/RUN.md">run</a>
+    <a href="https://github.com/danlikendy/teledom-retention-model-project/blob/main/docs/API.md">api</a>
+  </p>
+
+  <div class="rule"></div>
+
+  <h2>Why it exists</h2>
+  <p>7 043 contracts. 15.6% already gone. The retain team wants a score, not a dashboard. Tenure for leavers is cut at <span class="mono">EndDate</span> — if you keep counting until the snapshot, you invent extra months after they left.</p>
+
+  <h2>Numbers I will defend</h2>
+  <div class="nums">
+    <div class="num"><b>7 043</b><span>customers</span></div>
+    <div class="num"><b>15.6%</b><span>churn</span></div>
+    <div class="num"><b>0.891</b><span>CV AUC (Optuna GB)</span></div>
+    <div class="num"><b>0.912</b><span>hold-out AUC</span></div>
+  </div>
+  <p style="margin-top:14px">Dummy on test: 0.50. Default GB CV: 0.85. Accuracy 0.918 I do not lead with — class skew. An older README said 0.976; that is not the printed hold-out number. Top split: tenure, then charges, then month-to-month.</p>
+
+  <h2>Run</h2>
+  <p>GitHub Pages cannot fit sklearn. This page is the case. Training is local.</p>
+  <pre>pip install -r requirements.txt
+python scripts/download_data.py
+pytest tests/ -q</pre>
+
+  <h2>Hold-out vs dummy</h2>
+  <table>
+    <thead><tr><th>model</th><th>ROC-AUC</th></tr></thead>
+    <tbody>
+      <tr><td>Dummy (stratified, test)</td><td>0.504</td></tr>
+      <tr><td>GB default (CV)</td><td>0.850</td></tr>
+      <tr><td>GB + Optuna (CV)</td><td>0.891</td></tr>
+      <tr><td>GB + Optuna (test)</td><td>0.912</td></tr>
+    </tbody>
+  </table>
+
+  <p class="warn">A ranker for offers, not an auto-cancel.</p>
+
+  <footer>
+    MIT · <a href="https://tsygantsov.ru">tsygantsov.ru</a>
+  </footer>
+</body>
+</html>
